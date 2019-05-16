@@ -18,22 +18,20 @@ object ImageLoader {
 
   case class PutS3(s3: AmazonS3, put: PutObjectRequest)
 
-  def store(i: InputStream, id: String): ZIO[PutS3, Throwable, Unit] =
+  def s3Store(i: InputStream, id: String): ZIO[PutS3, Throwable, Unit] =
     for {
-      s3      <- ZIO.access[PutS3](_.s3)
-      request <- ZIO.access[PutS3](_.put)
+      PutS3(s3,request) <- ZIO.environment[PutS3]
     } yield s3.putObject(request)
 
   class LiveS3Loader(p: PutS3) extends ImageLoader {
     def imageLoader = new Service[Any] {
       def store(i: InputStream, id: String): ZIO[Any, Throwable, Unit] =
-        store(i, id).provide(p)
+        s3Store(i, id).provide(p)
     }
   }
 
   object imageLoader {
     def store(i: InputStream, id: String): ZIO[ImageLoader, Throwable, Unit] =
       ZIO.accessM(_.imageLoader.store(i, id))
-
   }
 }
